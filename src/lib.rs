@@ -1,4 +1,30 @@
-//! shimmyjinja: minimal Jinja-like engine for HF-style chat_template
+//! shimmyjinja: minimal Jinja-like engine for HF-style `chat_template` strings.
+//!
+//! This crate exists to do one job well: evaluate a decoded Hugging Face
+//! `chat_template` string against a list of messages and return the
+//! rendered prompt, with explicit newline semantics and a very small,
+//! auditable subset of Jinja.
+//!
+//! Supported subset:
+//! - Literals.
+//! - `{{ message.role }}` and `{{ message.content }}`.
+//! - `{% for message in messages %} ... {% endfor %}` (single-level, any
+//!   number of sequential loops).
+//!
+//! Not supported:
+//! - Nested loops.
+//! - `{% if %}` / `{% else %}` blocks.
+//! - Filters (e.g., `| upper`).
+//! - Arbitrary expressions or side effects.
+//!
+//! Newline semantics:
+//! - Newlines are only those present in the `chat_template` string
+//!   itself (after JSON decoding).
+//! - The engine never injects extra `\n` characters.
+//! - Trailing newlines are preserved; no trimming is performed.
+//!
+//! For more background and design notes, see `SHIMMYJINJA_DESIGN.md` in
+//! the repository.
 
 /// A single chat message in HF-style templates.
 #[derive(Debug, Clone, PartialEq, Eq)]

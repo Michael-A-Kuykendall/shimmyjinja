@@ -2,6 +2,13 @@
 name = "shimmyjinja"
 version = "0.1.0"
 edition = "2021"
+description = "Minimal Jinja-like engine for Hugging Face chat_template strings"
+license = "TBD"
+repository = "https://github.com/Michael-A-Kuykendall/shimmyjinja"
+homepage = "https://github.com/Michael-A-Kuykendall/shimmyjinja"
+documentation = "https://docs.rs/shimmyjinja"
+keywords = ["llm", "jinja", "chat_template", "huggingface"]
+categories = ["text-processing", "template-engine"]
 
 [lib]
 name = "shimmyjinja"
