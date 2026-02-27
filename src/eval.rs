@@ -98,6 +98,7 @@ impl Evaluator {
                                 self.pop_scope();
                             }
                         }
+                        Value::Null => {} // Missing iterable = skip loop (Jinja behavior)
                         _ => return Err(format!("Expected array for loop, got {:?}", iter_val)),
                     }
                 }
@@ -126,9 +127,9 @@ impl Evaluator {
         match expr {
             Expr::StringLit(s) => Ok(Value::String(s.clone())),
             Expr::BoolLit(b) => Ok(Value::Bool(*b)),
-            Expr::Var(name) => self
+            Expr::Var(name) => Ok(self
                 .get_var(name)
-                .ok_or_else(|| format!("Variable not found: {}", name)),
+                .unwrap_or(Value::Null)),
             Expr::Attribute(obj, attr) => {
                 let val = self.eval_expr(obj)?;
                 match val {
