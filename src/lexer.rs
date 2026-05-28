@@ -83,19 +83,51 @@ impl<'a> Tokenizer<'a> {
         }
 
         if !self.in_tag {
+            // Jinja2 comments {# ... #} — consume entirely, emit nothing.
+            // Must be checked before the general {%/{{{ scan because {#
+            // shares the `{` prefix but is neither a block nor a var tag.
+            if rest.starts_with("{#") {
+                // Find the closing #} — if absent, consume the rest (malformed template)
+                let close = rest.find("#}").map(|i| i + 2).unwrap_or(rest.len());
+                self.advance(close);
+                // Respect trim_blocks: eat the newline that follows #} if present
+                if self.trim_blocks {
+                    let after = self.remaining();
+                    if after.starts_with("\r\n") { self.advance(2); }
+                    else if after.starts_with('\n') { self.advance(1); }
+                }
+                // A comment with a leading `-` ({#-) strips preceding whitespace from
+                // the already-emitted text — we cannot retroactively trim a previous
+                // token, but we can mark trim_next_start so the *following* text is
+                // trimmed, which is the practical effect for generation-prompt blocks.
+                if rest.starts_with("{#-") {
+                    self.trim_next_start = true;
+                }
+                return self.next_token(); // skip: recurse to get the next real token
+            }
+
             // Find first {{ or {%  (also matches {{- and {%-)
             let pos_block = rest.find("{%");
             let pos_var   = rest.find("{{");
-            let next_tag  = match (pos_block, pos_var) {
-                (Some(b), Some(v)) => Some(b.min(v)),
-                (Some(b), None)    => Some(b),
-                (None, Some(v))    => Some(v),
-                (None, None)       => None,
+            // Also skip past any {# that may appear before the next real tag
+            let pos_comment = rest.find("{#");
+            let next_tag  = match (pos_block, pos_var, pos_comment) {
+                (Some(b), Some(v), Some(c)) => Some(b.min(v).min(c)),
+                (Some(b), Some(v), None)    => Some(b.min(v)),
+                (Some(b), None,    Some(c)) => Some(b.min(c)),
+                (None,    Some(v), Some(c)) => Some(v.min(c)),
+                (Some(b), None,    None)    => Some(b),
+                (None,    Some(v), None)    => Some(v),
+                (None,    None,    Some(c)) => Some(c),
+                (None,    None,    None)    => None,
             };
 
             match next_tag {
                 Some(0) => {
-                    // We are sitting right at the tag opener
+                    // We are sitting right at the tag opener — re-enter to handle {#
+                    if rest.starts_with("{#") {
+                        return self.next_token();
+                    }
                     if rest.starts_with("{%-") {
                         self.advance(3);
                         self.in_tag = true;
@@ -119,8 +151,8 @@ impl<'a> Tokenizer<'a> {
                     let raw_text = &rest[..idx];
                     let upcoming = &rest[idx..];
 
-                    // {%- and {{- strip trailing whitespace from the preceding text
-                    let text = if upcoming.starts_with("{%-") || upcoming.starts_with("{{-") {
+                    // {#- strips trailing whitespace from the preceding text too
+                    let text = if upcoming.starts_with("{%-") || upcoming.starts_with("{{-") || upcoming.starts_with("{#-") {
                         raw_text.trim_end().to_string()
                     } else {
                         raw_text.to_string()
@@ -136,7 +168,8 @@ impl<'a> Tokenizer<'a> {
 
                     self.advance(idx);
                     if text.is_empty() {
-                        // All whitespace consumed by trim — skip the empty token
+                        // All whitespace consumed by trim — skip the empty token,
+                        // and the next call will hit the {# or real tag at position 0
                         self.next_token()
                     } else {
                         Some(Token::Text(text))

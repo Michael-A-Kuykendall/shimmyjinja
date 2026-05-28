@@ -141,3 +141,62 @@ fn flag_default_false_when_missing() {
     let rendered = render_chat_template_with_context(template, &messages, &ctx);
     assert_eq!(rendered, "user"); // no PROMPT appended
 }
+
+// ── Jinja2 comment stripping ──────────────────────────────────────────────
+
+#[test]
+fn comment_block_stripped() {
+    // {# ... #} must not appear in output
+    let template = "before{# this is a comment #}after";
+    let messages: Vec<ChatMessage> = vec![];
+    let ctx = RenderContext::new();
+    let out = render_chat_template_with_context(template, &messages, &ctx);
+    assert_eq!(out, "beforeafter");
+}
+
+#[test]
+fn comment_block_with_trim_modifier_stripped() {
+    // {#- ... #} — the trim-modifier variant used heavily in Llama 3.2 templates
+    let template = "before{#- this is a comment #}after";
+    let messages: Vec<ChatMessage> = vec![];
+    let ctx = RenderContext::new();
+    let out = render_chat_template_with_context(template, &messages, &ctx);
+    assert!(!out.contains("{#"), "comment marker must not appear in output; got: {out:?}");
+    assert!(!out.contains("#}"), "comment closer must not appear in output; got: {out:?}");
+    assert!(!out.contains("this is a comment"), "comment body must be stripped; got: {out:?}");
+}
+
+#[test]
+fn comment_between_tags_stripped() {
+    // Realistic pattern from Llama 3.2: comment between two block tags
+    let template = "{% set x = 1 %}{#- extract system message #}{{ x }}";
+    let messages: Vec<ChatMessage> = vec![];
+    let ctx = RenderContext::new();
+    let out = render_chat_template_with_context(template, &messages, &ctx);
+    assert_eq!(out, "1");
+}
+
+#[test]
+fn comment_in_llama32_style_template_does_not_leak() {
+    // Simplified version of the Llama 3.2 preamble that triggered the original bug.
+    // The comment must vanish; content before/after must be preserved.
+    let template = concat!(
+        "{{- bos_token }}",
+        "{#- This block extracts the system message, so we can slot it into the right place. #}",
+        "{%- if messages[0]['role'] == 'system' %}",
+        "{%- set system_message = messages[0]['content'] %}",
+        "{%- endif %}",
+        "{{- system_message }}",
+    );
+    let messages = vec![
+        ChatMessage { role: "system".to_string(), content: "SYS".to_string() },
+    ];
+    let mut ctx = RenderContext::new();
+    ctx.set_var("bos_token", "<BOS>");
+    let out = render_chat_template_with_context(template, &messages, &ctx);
+    assert!(!out.contains("{#"), "comment marker leaked into output: {out:?}");
+    assert!(!out.contains("This block"), "comment body leaked into output: {out:?}");
+    assert!(out.contains("<BOS>"), "bos_token missing from output: {out:?}");
+    assert!(out.contains("SYS"), "system message not injected: {out:?}");
+}
+
