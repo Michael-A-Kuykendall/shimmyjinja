@@ -1,10 +1,10 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Text(String),
-    BlockStart, // {%
-    BlockEnd,   // %}
-    VarStart,   // {{
-    VarEnd,     // }}
+    BlockStart, // {%  or  {%-
+    BlockEnd,   // %}  or  -%}
+    VarStart,   // {{  or  {{-
+    VarEnd,     // }}  or  -}}
 
     // Keywords
     If,
@@ -16,21 +16,36 @@ pub enum Token {
     EndFor,
     And,
     Or,
+    Not,
     True,
     False,
+    Set,
+    Is,
 
     // Symbols
     EqEq,     // ==
+    Ne,       // !=
+    Assign,   // =  (single, for {% set %})
     Plus,     // +
+    Minus,    // -
+    Percent,  // %
+    Pipe,     // |
     Dot,      // .
+    Colon,    // :
+    Lt,       // <
+    Gt,       // >
+    Le,       // <=
+    Ge,       // >=
     LBracket, // [
     RBracket, // ]
     LParen,   // (
     RParen,   // )
+    Comma,    // ,
 
     // Data
     Ident(String),
     StringLit(String),
+    IntLit(i64),
 }
 
 #[derive(Clone)]
@@ -39,6 +54,7 @@ pub struct Tokenizer<'a> {
     cursor: usize,
     in_tag: bool,
     trim_blocks: bool,
+    trim_next_start: bool, // set by -%} or -}} to strip whitespace from the next text
 }
 
 impl<'a> Tokenizer<'a> {
@@ -48,6 +64,7 @@ impl<'a> Tokenizer<'a> {
             cursor: 0,
             in_tag: false,
             trim_blocks: true,
+            trim_next_start: false,
         }
     }
 
@@ -66,16 +83,31 @@ impl<'a> Tokenizer<'a> {
         }
 
         if !self.in_tag {
-            // Find next `{{` or `{%`
-            let next_tag = rest.find("{%").into_iter().chain(rest.find("{{")).min();
+            // Find first {{ or {%  (also matches {{- and {%-)
+            let pos_block = rest.find("{%");
+            let pos_var   = rest.find("{{");
+            let next_tag  = match (pos_block, pos_var) {
+                (Some(b), Some(v)) => Some(b.min(v)),
+                (Some(b), None)    => Some(b),
+                (None, Some(v))    => Some(v),
+                (None, None)       => None,
+            };
 
             match next_tag {
                 Some(0) => {
-                    // Starts with tag
-                    if rest.starts_with("{%") {
+                    // We are sitting right at the tag opener
+                    if rest.starts_with("{%-") {
+                        self.advance(3);
+                        self.in_tag = true;
+                        Some(Token::BlockStart)
+                    } else if rest.starts_with("{%") {
                         self.advance(2);
                         self.in_tag = true;
                         Some(Token::BlockStart)
+                    } else if rest.starts_with("{{-") {
+                        self.advance(3);
+                        self.in_tag = true;
+                        Some(Token::VarStart)
                     } else {
                         self.advance(2);
                         self.in_tag = true;
@@ -83,20 +115,50 @@ impl<'a> Tokenizer<'a> {
                     }
                 }
                 Some(idx) => {
-                    // Text before tag
-                    let text = rest[..idx].to_string();
+                    // There is text before the tag
+                    let raw_text = &rest[..idx];
+                    let upcoming = &rest[idx..];
+
+                    // {%- and {{- strip trailing whitespace from the preceding text
+                    let text = if upcoming.starts_with("{%-") || upcoming.starts_with("{{-") {
+                        raw_text.trim_end().to_string()
+                    } else {
+                        raw_text.to_string()
+                    };
+
+                    // -%} or -}} earlier set trim_next_start to strip leading whitespace
+                    let text = if self.trim_next_start {
+                        self.trim_next_start = false;
+                        text.trim_start().to_string()
+                    } else {
+                        text
+                    };
+
                     self.advance(idx);
-                    Some(Token::Text(text))
+                    if text.is_empty() {
+                        // All whitespace consumed by trim — skip the empty token
+                        self.next_token()
+                    } else {
+                        Some(Token::Text(text))
+                    }
                 }
                 None => {
-                    // All text
-                    let text = rest.to_string();
+                    // No more tags — rest is all text
+                    let mut text = rest.to_string();
+                    if self.trim_next_start {
+                        self.trim_next_start = false;
+                        text = text.trim_start().to_string();
+                    }
                     self.advance(rest.len());
-                    Some(Token::Text(text))
+                    if text.is_empty() {
+                        None
+                    } else {
+                        Some(Token::Text(text))
+                    }
                 }
             }
         } else {
-            // In tag: skip whitespace
+            // In tag: skip leading whitespace
             let rest_trimmed = rest.trim_start();
             let skipped = rest.len() - rest_trimmed.len();
             self.advance(skipped);
@@ -106,21 +168,31 @@ impl<'a> Tokenizer<'a> {
                 return None;
             }
 
-            // Check tag ends
+            // Check tag ends — trim variants first
+            if rest.starts_with("-%}") {
+                self.advance(3);
+                self.in_tag = false;
+                self.trim_next_start = true; // strip all leading whitespace from next text
+                return Some(Token::BlockEnd);
+            }
             if rest.starts_with("%}") {
                 self.advance(2);
                 self.in_tag = false;
-
                 if self.trim_blocks {
                     let after = self.remaining();
-                    if after.starts_with('\n') {
-                        self.advance(1);
-                    } else if after.starts_with("\r\n") {
+                    if after.starts_with("\r\n") {
                         self.advance(2);
+                    } else if after.starts_with('\n') {
+                        self.advance(1);
                     }
                 }
-
                 return Some(Token::BlockEnd);
+            }
+            if rest.starts_with("-}}") {
+                self.advance(3);
+                self.in_tag = false;
+                self.trim_next_start = true;
+                return Some(Token::VarEnd);
             }
             if rest.starts_with("}}") {
                 self.advance(2);
@@ -128,102 +200,158 @@ impl<'a> Tokenizer<'a> {
                 return Some(Token::VarEnd);
             }
 
-            // Symbols
+            // Multi-char symbols (check before single-char variants)
             if rest.starts_with("==") {
                 self.advance(2);
                 return Some(Token::EqEq);
             }
-            if rest.starts_with("+") {
+            if rest.starts_with("!=") {
+                self.advance(2);
+                return Some(Token::Ne);
+            }
+            if rest.starts_with('+') {
                 self.advance(1);
                 return Some(Token::Plus);
             }
-            if rest.starts_with(".") {
+            if rest.starts_with('-') {
+                self.advance(1);
+                return Some(Token::Minus);
+            }
+            if rest.starts_with('|') {
+                self.advance(1);
+                return Some(Token::Pipe);
+            }
+            if rest.starts_with('.') {
                 self.advance(1);
                 return Some(Token::Dot);
             }
-            if rest.starts_with("[") {
+            if rest.starts_with('[') {
                 self.advance(1);
                 return Some(Token::LBracket);
             }
-            if rest.starts_with("]") {
+            if rest.starts_with(']') {
                 self.advance(1);
                 return Some(Token::RBracket);
             }
-            if rest.starts_with("(") {
+            if rest.starts_with('(') {
                 self.advance(1);
                 return Some(Token::LParen);
             }
-            if rest.starts_with(")") {
+            if rest.starts_with(')') {
                 self.advance(1);
                 return Some(Token::RParen);
             }
-
-            // Strings
-            let first = rest.chars().next().unwrap();
-            if first == '\'' || first == '"' {
-                let quote = first;
-                // find closing quote, handle escape
-                let mut end_idx = 1;
-                let mut s = String::new();
-                let mut chars = rest[1..].chars();
-                while let Some(c) = chars.next() {
-                    if c == quote {
-                        self.advance(end_idx + 1);
-                        return Some(Token::StringLit(s));
-                    }
-                    if c == '\\' {
-                        end_idx += 1;
-                        if let Some(esc) = chars.next() {
-                            end_idx += 1; // Count escape char length? usually 1 byte for n,t
-                                          // Actually we need byte index.
-                                          // `escape` char consumes bytes. `esc` is char.
-                            end_idx += esc.len_utf8();
-
-                            match esc {
-                                'n' => s.push('\n'),
-                                't' => s.push('\t'),
-                                _ => s.push(esc),
-                            }
-                        }
-                    } else {
-                        end_idx += c.len_utf8();
-                        s.push(c);
-                    }
-                }
-                // Unterminated string
-                return None;
+            if rest.starts_with(',') {
+                self.advance(1);
+                return Some(Token::Comma);
+            }
+            if rest.starts_with('%') {
+                self.advance(1);
+                return Some(Token::Percent);
+            }
+            if rest.starts_with(':') {
+                self.advance(1);
+                return Some(Token::Colon);
+            }
+            // Comparison operators (check 2-char before 1-char)
+            if rest.starts_with("<=") {
+                self.advance(2);
+                return Some(Token::Le);
+            }
+            if rest.starts_with(">=") {
+                self.advance(2);
+                return Some(Token::Ge);
+            }
+            if rest.starts_with('<') {
+                self.advance(1);
+                return Some(Token::Lt);
+            }
+            if rest.starts_with('>') {
+                self.advance(1);
+                return Some(Token::Gt);
+            }
+            // Single = (must come after == check)
+            if rest.starts_with('=') {
+                self.advance(1);
+                return Some(Token::Assign);
             }
 
-            // Identifiers / Keywords
+            let first = rest.chars().next().unwrap();
+
+            // Integer literals
+            if first.is_ascii_digit() {
+                let int_str: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+                self.advance(int_str.len());
+                let n: i64 = int_str.parse().unwrap_or(0);
+                return Some(Token::IntLit(n));
+            }
+
+            // String literals
+            if first == '\'' || first == '"' {
+                let quote = first;
+                let mut end_idx = 1usize;
+                let mut s = String::new();
+                let mut chars = rest[1..].chars();
+                loop {
+                    match chars.next() {
+                        None => return None, // unterminated string
+                        Some(c) if c == quote => {
+                            self.advance(end_idx + quote.len_utf8());
+                            return Some(Token::StringLit(s));
+                        }
+                        Some('\\') => {
+                            end_idx += 1;
+                            match chars.next() {
+                                None => return None,
+                                Some(esc) => {
+                                    end_idx += esc.len_utf8();
+                                    match esc {
+                                        'n'  => s.push('\n'),
+                                        't'  => s.push('\t'),
+                                        'r'  => s.push('\r'),
+                                        '\'' => s.push('\''),
+                                        '"'  => s.push('"'),
+                                        '\\' => s.push('\\'),
+                                        _    => s.push(esc),
+                                    }
+                                }
+                            }
+                        }
+                        Some(c) => {
+                            end_idx += c.len_utf8();
+                            s.push(c);
+                        }
+                    }
+                }
+            }
+
+            // Identifiers and keywords
             if first.is_alphabetic() || first == '_' {
-                let _len = rest
-                    .chars() // Renamed to _len to suppress warning
-                    .take_while(|c| c.is_alphanumeric() || *c == '_')
-                    .count();
-                // Logic is safer with indices.
                 let ident_str: String = rest
                     .chars()
                     .take_while(|c| c.is_alphanumeric() || *c == '_')
                     .collect();
                 self.advance(ident_str.len());
-
                 return match ident_str.as_str() {
-                    "if" => Some(Token::If),
-                    "elif" => Some(Token::Elif),
-                    "else" => Some(Token::Else),
-                    "endif" => Some(Token::EndIf),
-                    "for" => Some(Token::For),
-                    "in" => Some(Token::In),
+                    "if"     => Some(Token::If),
+                    "elif"   => Some(Token::Elif),
+                    "else"   => Some(Token::Else),
+                    "endif"  => Some(Token::EndIf),
+                    "for"    => Some(Token::For),
+                    "in"     => Some(Token::In),
                     "endfor" => Some(Token::EndFor),
-                    "and" => Some(Token::And),
-                    "or" => Some(Token::Or),
-                    "true" => Some(Token::True),
-                    "false" => Some(Token::False),
-                    _ => Some(Token::Ident(ident_str)),
+                    "and"    => Some(Token::And),
+                    "or"     => Some(Token::Or),
+                    "not"    => Some(Token::Not),
+                    "true"   => Some(Token::True),
+                    "false"  => Some(Token::False),
+                    "set"    => Some(Token::Set),
+                    "is"     => Some(Token::Is),
+                    _        => Some(Token::Ident(ident_str)),
                 };
             }
 
-            // Unknown char? Skip one.
+            // Unknown character — skip and continue
             self.advance(1);
             self.next_token()
         }
