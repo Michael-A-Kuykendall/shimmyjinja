@@ -15,4 +15,4 @@ jobs:
           profile: minimal
           override: true
       - name: Run tests
-        run: cargo test --lib
+        run: cargo test

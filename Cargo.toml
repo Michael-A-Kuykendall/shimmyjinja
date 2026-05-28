@@ -1,6 +1,6 @@
 [package]
 name = "shimmyjinja"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 description = "Minimal Jinja-like engine for Hugging Face chat_template strings"
 license = "MIT"
@@ -17,3 +17,4 @@ path = "src/lib.rs"
 [dependencies]
 
 [dev-dependencies]
+proptest = "1.6"
