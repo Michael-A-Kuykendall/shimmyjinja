@@ -276,6 +276,129 @@ fn gguf_tinyllama_chat_template_renders() {
     );
 }
 
+// ── Targeted assertion tests for the two long templates ──────────────────
+
+#[test]
+fn gguf_llama32_structural_tokens_and_content() {
+    let path = model_dir().join("gguf_collection/Llama-3.2-1B-Instruct-Q4_K_M.gguf");
+    skip_if_missing!(path);
+
+    let template = read_chat_template(&path)
+        .expect("tokenizer.chat_template not found in Llama-3.2-1B GGUF");
+
+    let mut ctx = RenderContext::new();
+    ctx.set_var("bos_token", "<|begin_of_text|>");
+    ctx.set_var("eos_token", "<|eot_id|>");
+    ctx.set_flag("add_generation_prompt", true);
+
+    let msgs = [
+        ChatMessage { role: "user".into(), content: "Hello there".into() },
+    ];
+    let out = render_chat_template_with_context(&template, &msgs, &ctx);
+
+    assert!(out.contains("<|begin_of_text|>"),
+        "bos_token must appear; got: {out:?}");
+    assert!(out.contains("<|start_header_id|>user<|end_header_id|>"),
+        "Llama3 user header; got: {out:?}");
+    assert!(out.contains("Hello there"),
+        "user content; got: {out:?}");
+    assert!(out.contains("<|eot_id|>"),
+        "eot_id after user turn; got: {out:?}");
+    assert!(out.contains("<|start_header_id|>assistant<|end_header_id|>"),
+        "Llama3 assistant header (gen-prompt); got: {out:?}");
+}
+
+#[test]
+fn gguf_llama32_with_system_message() {
+    let path = model_dir().join("gguf_collection/Llama-3.2-1B-Instruct-Q4_K_M.gguf");
+    skip_if_missing!(path);
+
+    let template = read_chat_template(&path)
+        .expect("tokenizer.chat_template not found in Llama-3.2-1B GGUF");
+
+    let mut ctx = RenderContext::new();
+    ctx.set_var("bos_token", "<|begin_of_text|>");
+    ctx.set_var("eos_token", "<|eot_id|>");
+    ctx.set_flag("add_generation_prompt", true);
+
+    let msgs = [
+        ChatMessage { role: "system".into(),    content: "You are helpful.".into() },
+        ChatMessage { role: "user".into(),       content: "Hello".into() },
+        ChatMessage { role: "assistant".into(),  content: "Hi!".into() },
+        ChatMessage { role: "user".into(),       content: "Goodbye".into() },
+    ];
+    let out = render_chat_template_with_context(&template, &msgs, &ctx);
+
+    assert!(out.contains("<|start_header_id|>system<|end_header_id|>"),
+        "system header; got: {out:?}");
+    assert!(out.contains("You are helpful."),
+        "system content; got: {out:?}");
+    assert!(out.contains("Hi!"),
+        "assistant content; got: {out:?}");
+    assert!(out.contains("<|start_header_id|>assistant<|end_header_id|>"),
+        "final assistant gen-prompt; got: {out:?}");
+}
+
+#[test]
+fn gguf_qwen3_chatml_user_turn_without_tools() {
+    let path = model_dir().join("gguf_collection/Qwen3-0.6B-Q4_K_M.gguf");
+    skip_if_missing!(path);
+
+    let template = read_chat_template(&path)
+        .expect("tokenizer.chat_template not found in Qwen3 GGUF");
+
+    let mut ctx = RenderContext::new();
+    // Qwen3 bos_token in the GGUF is id=1 which maps to `"` (a single
+    // double-quote) — unusual but real.  eos_token is <|im_end|>.
+    ctx.set_var("bos_token", "\"");
+    ctx.set_var("eos_token", "<|im_end|>");
+    ctx.set_flag("add_generation_prompt", true);
+    // No tools → the short path through the template is taken.
+
+    let msgs = [
+        ChatMessage { role: "user".into(), content: "Hello there".into() },
+    ];
+    let out = render_chat_template_with_context(&template, &msgs, &ctx);
+
+    assert!(out.contains("<|im_start|>user"),
+        "ChatML user header; got: {out:?}");
+    assert!(out.contains("Hello there"),
+        "user content; got: {out:?}");
+    assert!(out.contains("<|im_end|>"),
+        "ChatML close tag; got: {out:?}");
+    assert!(out.contains("<|im_start|>assistant"),
+        "gen-prompt opens assistant turn; got: {out:?}");
+}
+
+#[test]
+fn gguf_qwen3_system_message_then_user() {
+    let path = model_dir().join("gguf_collection/Qwen3-0.6B-Q4_K_M.gguf");
+    skip_if_missing!(path);
+
+    let template = read_chat_template(&path)
+        .expect("tokenizer.chat_template not found in Qwen3 GGUF");
+
+    let mut ctx = RenderContext::new();
+    ctx.set_var("bos_token", "\"");
+    ctx.set_var("eos_token", "<|im_end|>");
+    ctx.set_flag("add_generation_prompt", true);
+
+    let msgs = [
+        ChatMessage { role: "system".into(), content: "Think carefully.".into() },
+        ChatMessage { role: "user".into(),   content: "What is 2+2?".into() },
+    ];
+    let out = render_chat_template_with_context(&template, &msgs, &ctx);
+
+    assert!(out.contains("<|im_start|>system"),
+        "system turn; got: {out:?}");
+    assert!(out.contains("Think carefully."),
+        "system content; got: {out:?}");
+    assert!(out.contains("<|im_start|>user"),
+        "user turn; got: {out:?}");
+    assert!(out.contains("What is 2+2?"),
+        "user content; got: {out:?}");
+}
+
 /// Generic test: any GGUF that has a chat_template should render without panic
 /// and produce non-empty output.
 #[test]
