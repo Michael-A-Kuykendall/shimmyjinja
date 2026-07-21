@@ -20,6 +20,21 @@ Part of the **shimmy** inference ecosystem:
 
 ---
 
+### 💝 Support shimmyjinja
+
+🚀 **If shimmyjinja helps you, consider [sponsoring](https://github.com/sponsors/Michael-A-Kuykendall) — 100% of support goes to keeping it free forever.**
+
+- **$5/month**: Coffee Hero ☕ — Eternal gratitude + name in [SPONSORS.md](SPONSORS.md)
+- **$25/month**: Developer Supporter 🐛 — Priority bug response + roadmap influence
+- **$100/month**: Corporate Backer 🏢 — Logo in README + release-note recognition
+- **$500/month**: Enterprise Partner 🚀 — Prominent logo + monthly office hours + roadmap input
+
+[**🎯 Become a Sponsor**](https://github.com/sponsors/Michael-A-Kuykendall) | See our amazing [sponsors](SPONSORS.md) 🙏
+
+**Thank you to our sponsors:** [ZephyrCloudIO](https://github.com/ZephyrCloudIO) (Corporate Backer) · alistairheath (Coffee Hero)
+
+---
+
 ## What it does
 
 Every GGUF model file ships a `tokenizer.chat_template` key — a Jinja2 template
