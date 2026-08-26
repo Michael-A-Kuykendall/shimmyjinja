@@ -1,10 +1,6 @@
 # shimmyjinja
 
-[![Trans rights](https://pride-badges.pony.workers.dev/static/v1?label=trans%20rights&stripeWidth=6&stripeColors=5BCEFA,F5A9B8,FFFFFF,F5A9B8,5BCEFA)](https://translifeline.org/)
-[![LGBTQ+ friendly](https://pride-badges.pony.workers.dev/static/v1?label=lgbtq%2B%20friendly&stripeWidth=6&stripeColors=E40303,FF8C00,FFED00,008026,24408E,732982)](https://www.thetrevorproject.org/)
-
-
-[![crates.io](https://img.shields.io/crates/v/shimmyjinja.svg)](https://crates.io/crates/shimmyjinja)
+[![crates.io](https://img.shields.io/crates/v/shimmyjinja.svg)](https://crates.io/crates/shimmyjinja) [![Trans rights](https://pride-badges.pony.workers.dev/static/v1?label=trans%20rights&stripeWidth=6&stripeColors=5BCEFA,F5A9B8,FFFFFF,F5A9B8,5BCEFA)](https://translifeline.org/) [![LGBTQ+ friendly](https://pride-badges.pony.workers.dev/static/v1?label=lgbtq%2B%20friendly&stripeWidth=6&stripeColors=E40303,FF8C00,FFED00,008026,24408E,732982)](https://www.thetrevorproject.org/)
 [![docs.rs](https://docs.rs/shimmyjinja/badge.svg)](https://docs.rs/shimmyjinja)
 [![CI](https://github.com/Michael-A-Kuykendall/shimmyjinja/actions/workflows/ci.yml/badge.svg)](https://github.com/Michael-A-Kuykendall/shimmyjinja/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
