@@ -1,7 +1,7 @@
-pub mod ast;
-pub mod eval;
-pub mod lexer;
-pub mod parser;
+pub(crate) mod ast;
+pub(crate) mod eval;
+pub(crate) mod lexer;
+pub(crate) mod parser;
 
 use crate::eval::{Evaluator, Value};
 use crate::parser::Parser;
@@ -44,18 +44,19 @@ impl RenderContext {
     }
 }
 
+/// Error type returned by the fallible render functions.
+pub type RenderError = String;
+
 /// Render a HF-style chat_template with messages and default context.
 ///
 /// Default context: `eos_token = "</s>"`, `add_generation_prompt = true`.
-/// For custom context, use [`render_chat_template_with_context`].
+/// For custom context use [`render_chat_template_with_context`].
+/// For a fallible version that returns `Result`, use [`try_render_chat_template`].
 ///
-/// Supported subset of Jinja2:
-/// - Loops: `{% for message in messages %}`
-/// - Conditions: `{% if ... %}`, `{% elif ... %}`, `{% else %}`
-/// - Variables: `{{ message.role }}`, `{{ message['content'] }}`
-/// - Literals: Strings, Booleans
-/// - Operators: `==`, `+` (string concat), `and`, `or`
-/// - Context: `messages` (provided), plus any variables from `RenderContext`
+/// # Panics
+///
+/// Panics if the template fails to parse or render. Use [`try_render_chat_template`]
+/// if you need to handle template errors without unwinding.
 pub fn render_chat_template(template: &str, messages: &[ChatMessage]) -> String {
     let mut ctx = RenderContext::new();
     ctx.set_var("eos_token", "</s>");
@@ -67,16 +68,72 @@ pub fn render_chat_template(template: &str, messages: &[ChatMessage]) -> String 
 ///
 /// The context provides string variables (`eos_token`, `bos_token`) and
 /// boolean flags (`add_generation_prompt`) that the template can reference.
+///
+/// # Panics
+///
+/// Panics if the template fails to parse or render. Use
+/// [`try_render_chat_template_with_context`] for a non-panicking variant.
+///
+/// # Examples
+///
+/// ```
+/// use shimmyjinja::{ChatMessage, RenderContext, render_chat_template_with_context};
+///
+/// let template = "{% for message in messages %}{{ message['role'] }}: {{ message['content'] }}\n{% endfor %}";
+/// let messages = vec![ChatMessage { role: "user".into(), content: "Hello!".into() }];
+/// let mut ctx = RenderContext::new();
+/// ctx.set_var("eos_token", "</s>");
+/// ctx.set_flag("add_generation_prompt", false);
+///
+/// let out = render_chat_template_with_context(template, &messages, &ctx);
+/// assert_eq!(out, "user: Hello!\n");
+/// ```
 pub fn render_chat_template_with_context(
     template: &str,
     messages: &[ChatMessage],
     ctx: &RenderContext,
 ) -> String {
+    try_render_chat_template_with_context(template, messages, ctx)
+        .unwrap_or_else(|e| panic!("shimmyjinja render error: {}", e))
+}
+
+/// Render a HF-style chat_template, returning `Err` instead of panicking.
+///
+/// Default context: `eos_token = "</s>"`, `add_generation_prompt = true`.
+pub fn try_render_chat_template(
+    template: &str,
+    messages: &[ChatMessage],
+) -> Result<String, RenderError> {
+    let mut ctx = RenderContext::new();
+    ctx.set_var("eos_token", "</s>");
+    ctx.set_flag("add_generation_prompt", true);
+    try_render_chat_template_with_context(template, messages, &ctx)
+}
+
+/// Render a HF-style chat_template with explicit context, returning `Err` instead of panicking.
+///
+/// Prefer this over [`render_chat_template_with_context`] when you need to handle
+/// template errors gracefully (e.g., fall back to a default format).
+///
+/// # Examples
+///
+/// ```
+/// use shimmyjinja::{ChatMessage, RenderContext, try_render_chat_template_with_context};
+///
+/// let bad_template = "{% for x in %}oops{% endfor %}";
+/// let messages = vec![ChatMessage { role: "user".into(), content: "hi".into() }];
+/// let ctx = RenderContext::new();
+///
+/// assert!(try_render_chat_template_with_context(bad_template, &messages, &ctx).is_err());
+/// ```
+pub fn try_render_chat_template_with_context(
+    template: &str,
+    messages: &[ChatMessage],
+    ctx: &RenderContext,
+) -> Result<String, RenderError> {
+
     let mut parser = Parser::new(template);
-    let ast = match parser.parse() {
-        Ok(ast) => ast,
-        Err(e) => panic!("Template Parsing Error: {}", e),
-    };
+    let ast = parser.parse().map_err(|e| format!("parse error: {}", e))?;
 
     let mut context = HashMap::new();
 
@@ -101,8 +158,5 @@ pub fn render_chat_template_with_context(
     }
 
     let mut eval = Evaluator::new(context);
-    match eval.render(&ast) {
-        Ok(s) => s,
-        Err(e) => panic!("Render Error: {}", e),
-    }
+    eval.render(&ast).map_err(|e| format!("render error: {}", e))
 }
