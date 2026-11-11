@@ -1,5 +1,8 @@
 # shimmyjinja
 
+> **版本更新（0.5.0）：** 本文件为早期的扩展中文说明，保留详细示例供参考；请优先阅读已按 0.5.0 现行范围校正的[简体中文 README](docs/zh-CN/README.md)或[繁體中文 README](docs/zh-TW/README.md)。不承诺与完整 Jinja2 或所有模型模板完全兼容。模板错误请优先使用返回 Result 的 `try_render_chat_template` / `try_render_chat_template_with_context`。历史测试数字及模型列表不能视为当前认证清单。
+
+
 [![crates.io](https://img.shields.io/crates/v/shimmyjinja.svg)](https://crates.io/crates/shimmyjinja)
 [![docs.rs](https://docs.rs/shimmyjinja/badge.svg)](https://docs.rs/shimmyjinja)
 [![CI](https://github.com/Michael-A-Kuykendall/shimmyjinja/actions/workflows/ci.yml/badge.svg)](https://github.com/Michael-A-Kuykendall/shimmyjinja/actions)
@@ -40,7 +43,7 @@
 
 ## 支持的 Jinja2 特性
 
-覆盖当前主流 `chat_template` 字符串中的所有用法：
+以下是实现的部分语法；这不是任意模板均兼容的保证：
 
 | 特性 | 示例 |
 |---|---|
@@ -53,7 +56,7 @@
 | 内联三元表达式 | `'yes' if flag else 'no'` |
 | `namespace()` | `{% set ns = namespace(found=false) %}` |
 | `set` / 点式 `set` | `{% set ns.found = true %}` |
-| `raise_exception()` | 对无效用法抛出错误 |
+| `raise_exception()` | 当前为空操作；调用方必须验证角色及模板约束 |
 | 方法调用 | `message.get('content', '')` |
 | 上下文变量 | `bos_token`、`eos_token`、`add_generation_prompt` |
 | 方括号访问 | `message['role']` |
@@ -68,7 +71,7 @@ TinyLlama · Llama 3.2 · Mistral · Gemma 2 · Phi-3 / Phi-3.5 · Qwen 2 · Qwe
 
 ```toml
 [dependencies]
-shimmyjinja = "0.4"
+shimmyjinja = "0.5.0"
 ```
 
 ```rust
@@ -108,12 +111,12 @@ let eos = tok.eos_token();
 ## 测试
 
 ```bash
-cargo test   # 81 个测试：单元测试 + 集成测试 + 基于属性的测试
+cargo test   # 集成、基于属性和文档测试
 ```
 
 测试套件涵盖：
 
-- **单元测试** — 词法分析器、解析器、求值器边界情况（12 个）
+- **边界测试** — 通过公开渲染 API 验证词法分析、解析及求值行为
 - **真实模型模板测试** — 内嵌来自 6 个模型系列的真实 `chat_template` 字符串，无需磁盘文件（21 个）
 - **GGUF 提取测试** — 端对端测试，使用真实 GGUF 文件，文件不存在时自动跳过（9 个）
 - **基于属性的测试** — 13 个 proptest 属性：确定性、无内容丢失、无未解析标签、token 字面量透传、生成提示词抑制、长内容、空输入
@@ -125,7 +128,7 @@ cargo test   # 81 个测试：单元测试 + 集成测试 + 基于属性的测�
 - **运行时零依赖** — 无 `proc-macro`，无重量级 crate。`Cargo.toml` 的 `[dependencies]` 为空。
 - **`cargo publish` 友好** — 无 `build.rs`，无 C/C++ 编译，无 bindgen。
 - **显式换行语义** — 引擎不会凭空生成换行符；所有空白均来自 JSON 解码后的模板字符串。
-- **模板错误快速失败** — `parse()` 返回 `Err` 而不是静默输出错误结果。
+- **模板错误快速失败** — 请使用返回 `Result` 的公开 `try_render_chat_template_with_context`；内部解析器不是公共接口。
 
 ---
 
@@ -135,4 +138,4 @@ MIT — 详见 [LICENSE](LICENSE)。
 
 ---
 
-[English README](README.md)
+[English README](README.md) · [简体中文现行指南](docs/zh-CN/README.md) · [繁體中文](docs/zh-TW/README.md)

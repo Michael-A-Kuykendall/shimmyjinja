@@ -1,5 +1,13 @@
 # shimmyjinja Design
 
+> Historical v0.1 design, superseded by the [0.5.0 README](README.md) and
+> [public API](https://docs.rs/shimmyjinja/0.5.0/shimmyjinja/).
+> Legacy render wrappers can panic on malformed templates. Use the fallible
+> try_render_chat_template / try_render_chat_template_with_context APIs;
+> internal parser modules are not public. Historical totality claims below
+> do not describe the current implementation.
+
+
 ## 1. Crate Purpose
 
 `shimmyjinja` is a **minimal, LLM-focused Jinja-like engine** implemented in Rust. It exists to execute Hugging Face–style `chat_template` strings (including those embedded in GGUF metadata) against a list of chat messages and produce a final prompt string.

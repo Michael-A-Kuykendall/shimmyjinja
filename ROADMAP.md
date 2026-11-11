@@ -1,5 +1,22 @@
 # shimmyjinja Roadmap
 
+## Current baseline — 0.5.0
+
+Delivered: fallible rendering APIs, a focused Jinja-like chat-template subset,
+and private internal parser/evaluator modules. See [README](README.md),
+[CHANGELOG](CHANGELOG.md) and the actual tests for the implemented contract.
+Template support does not certify model inference.
+
+Next work is demand-driven: add failing template fixtures before extending
+syntax, improve error diagnostics, and compare rendered strings with independent
+references. No full Jinja2, I/O or arbitrary function execution is promised.
+
+## Historical planning notes
+
+The version sketches below predate 0.5.0. Some work (including fallible APIs)
+has shipped; these notes are retained as history, not current feature promises.
+
+
 This document sketches potential future improvements for `shimmyjinja`.
 None of these are promises; they are ideas to evaluate as real needs arise.
 

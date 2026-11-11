@@ -1,4 +1,8 @@
+**Languages / 语言 / 語言:** English · [简体中文](docs/zh-CN/README.md) · [繁體中文](docs/zh-TW/README.md)
+
 # shimmyjinja
+
+Current published version: **0.5.0**. This is a Jinja-like subset, not full Jinja2 compatibility or model inference certification. Use the fallible `try_render_chat_template` / `try_render_chat_template_with_context` APIs for untrusted templates; legacy render wrappers panic on errors. Internal `ast`, `eval`, `lexer` and `parser` modules are not public APIs.
 
 [![crates.io](https://img.shields.io/crates/v/shimmyjinja.svg)](https://crates.io/crates/shimmyjinja) [![Trans rights](https://pride-badges.pony.workers.dev/static/v1?label=trans%20rights&stripeWidth=6&stripeColors=5BCEFA,F5A9B8,FFFFFF,F5A9B8,5BCEFA)](https://translifeline.org/) [![LGBTQ+ friendly](https://pride-badges.pony.workers.dev/static/v1?label=lgbtq%2B%20friendly&stripeWidth=6&stripeColors=E40303,FF8C00,FFED00,008026,24408E,732982)](https://www.thetrevorproject.org/)
 [![docs.rs](https://docs.rs/shimmyjinja/badge.svg)](https://docs.rs/shimmyjinja)
@@ -15,7 +19,7 @@ Part of the **shimmy** inference ecosystem:
 |---|---|
 | **shimmyjinja** ← you are here | Jinja2 template engine for `chat_template` strings |
 | [**shimmytok**](https://crates.io/crates/shimmytok) | GGUF-native tokenizer (BPE/SentencePiece) |
-| [**airframe**](https://github.com/Michael-A-Kuykendall/airframe) | WebGPU inference server — uses both shimmytok and shimmyjinja |
+| [**airframe**](https://github.com/Michael-A-Kuykendall/airframe) | WebGPU inference engine — uses both shimmytok and shimmyjinja |
 | [**shimmy**](https://github.com/Michael-A-Kuykendall/shimmy) | OpenAI-compatible server powered by Airframe |
 
 ---
@@ -37,7 +41,7 @@ Any amount is appreciated. Suggested tiers:
 
 ## What it does
 
-Every GGUF model file ships a `tokenizer.chat_template` key — a Jinja2 template
+Some GGUF model files provide a `tokenizer.chat_template` key — a Jinja2 template
 string that controls how a list of chat messages gets formatted into the single
 prompt string the model expects. Example (TinyLlama):
 
@@ -59,7 +63,7 @@ prompt string the model expects. Example (TinyLlama):
 
 ## Supported Jinja2 subset
 
-Everything used by real production `chat_template` strings today:
+Implemented syntax includes the following; unsupported templates must be handled as errors:
 
 | Feature | Example |
 |---|---|
@@ -72,12 +76,12 @@ Everything used by real production `chat_template` strings today:
 | Inline ternary | `'yes' if flag else 'no'` |
 | `namespace()` | `{% set ns = namespace(found=false) %}` |
 | `set` / dotted `set` | `{% set ns.found = true %}` |
-| `raise_exception()` | Raises on invalid usage |
+| `raise_exception()` | Currently a no-op; callers must validate role/template constraints themselves |
 | Method calls | `message.get('content', '')` |
 | Context variables | `bos_token`, `eos_token`, `add_generation_prompt` |
 | Bracket access | `message['role']` |
 
-### Supported model families (tested with real GGUF files)
+### Template fixtures (not inference certification)
 
 TinyLlama · Llama 3.2 · Mistral · Gemma 2 · Phi-3 / Phi-3.5 · Qwen 2 · Qwen 3 · DeepSeek-LLM
 
@@ -87,7 +91,7 @@ TinyLlama · Llama 3.2 · Mistral · Gemma 2 · Phi-3 / Phi-3.5 · Qwen 2 · Qwe
 
 ```toml
 [dependencies]
-shimmyjinja = "0.4"
+shimmyjinja = "0.5.0"
 ```
 
 ```rust
@@ -128,12 +132,12 @@ let eos = tok.eos_token();
 ## Testing
 
 ```bash
-cargo test          # 81 tests: unit + integration + property-based
+cargo test          # integration, property-based and documentation tests
 ```
 
 The test suite covers:
 
-- **Unit tests** — lexer, parser, evaluator edge cases (12 tests)
+- **Edge-case tests** — lexer, parser and evaluator behavior through the public rendering API
 - **Real model templates** — embedded verbatim `chat_template` strings from 6 model families, disk-free (21 tests)
 - **GGUF extraction tests** — end-to-end with real GGUF files on disk, skip-if-missing (9 tests)
 - **Property-based tests** — 13 proptest properties: determinism, no content loss, no unresolved tags, token literal pass-through, generation-prompt suppression, long content, empty input
@@ -145,7 +149,7 @@ The test suite covers:
 - **Zero dependencies at runtime** — no `proc-macro`, no heavy crates. The `[dependencies]` section of `Cargo.toml` is empty.
 - **`cargo publish` clean** — no `build.rs`, no C/C++ compilation, no bindgen.
 - **Explicit newline semantics** — no newlines are invented by the engine; all whitespace comes from the template string after JSON decoding.
-- **Fail loudly on bad templates** — `parse()` returns `Err` rather than silently producing wrong output.
+- **Fallible rendering** — `try_render_chat_template_with_context` returns `Err` on template failures. The internal parser is not a public API.
 
 ---
 
@@ -153,8 +157,7 @@ The test suite covers:
 
 Maintainer: **Michael Kuykendall** (michaelallenkuykendall@gmail.com).
 
-Significant behavioral changes affecting `chat_template` compatibility should
-be discussed in an issue first. Small focused fixes welcome as PRs.
+This project is open source, not open contribution. Prospective co-maintainers should email the maintainer and obtain approval before submitting contributions.
 
 ## License
 
