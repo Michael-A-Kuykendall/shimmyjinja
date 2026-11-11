@@ -1,5 +1,8 @@
 # shimmyjinja
 
+> **版本更新（0.5.0）：** 本文件为早期的扩展中文说明，保留详细示例供参考；请优先阅读已按 0.5.0 现行范围校正的[简体中文 README](docs/zh-CN/README.md)或[繁體中文 README](docs/zh-TW/README.md)。不承诺与完整 Jinja2 或所有模型模板完全兼容。模板错误请优先使用返回 Result 的 `try_render_chat_template` / `try_render_chat_template_with_context`。历史测试数字及模型列表不能视为当前认证清单。
+
+
 [![crates.io](https://img.shields.io/crates/v/shimmyjinja.svg)](https://crates.io/crates/shimmyjinja)
 [![docs.rs](https://docs.rs/shimmyjinja/badge.svg)](https://docs.rs/shimmyjinja)
 [![CI](https://github.com/Michael-A-Kuykendall/shimmyjinja/actions/workflows/ci.yml/badge.svg)](https://github.com/Michael-A-Kuykendall/shimmyjinja/actions)
@@ -68,7 +71,7 @@ TinyLlama · Llama 3.2 · Mistral · Gemma 2 · Phi-3 / Phi-3.5 · Qwen 2 · Qwe
 
 ```toml
 [dependencies]
-shimmyjinja = "0.4"
+shimmyjinja = "0.5.0"
 ```
 
 ```rust
@@ -135,4 +138,4 @@ MIT — 详见 [LICENSE](LICENSE)。
 
 ---
 
-[English README](README.md)
+[English README](README.md) · [简体中文现行指南](docs/zh-CN/README.md) · [繁體中文](docs/zh-TW/README.md)
