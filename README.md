@@ -9,7 +9,7 @@ Current published version: **0.5.0**. This is a Jinja-like subset, not full Jinj
 [![CI](https://github.com/Michael-A-Kuykendall/shimmyjinja/actions/workflows/ci.yml/badge.svg)](https://github.com/Michael-A-Kuykendall/shimmyjinja/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Pure-Rust Jinja2 engine for Hugging Face `chat_template` strings — the layer
+Pure-Rust Jinja-like subset renderer for Hugging Face `chat_template` strings — the layer
 that turns a raw GGUF file's template field into a correctly-formatted LLM prompt,
 no Python required.
 
@@ -17,7 +17,7 @@ Part of the **shimmy** inference ecosystem:
 
 | Crate | Role |
 |---|---|
-| **shimmyjinja** ← you are here | Jinja2 template engine for `chat_template` strings |
+| **shimmyjinja** ← you are here | Jinja-style subset renderer for `chat_template` strings |
 | [**shimmytok**](https://crates.io/crates/shimmytok) | GGUF-native tokenizer (BPE/SentencePiece) |
 | [**airframe**](https://github.com/Michael-A-Kuykendall/airframe) | WebGPU inference engine — uses both shimmytok and shimmyjinja |
 | [**shimmy**](https://github.com/Michael-A-Kuykendall/shimmy) | OpenAI-compatible server powered by Airframe |
