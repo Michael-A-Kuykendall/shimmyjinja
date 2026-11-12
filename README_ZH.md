@@ -8,14 +8,14 @@
 [![CI](https://github.com/Michael-A-Kuykendall/shimmyjinja/actions/workflows/ci.yml/badge.svg)](https://github.com/Michael-A-Kuykendall/shimmyjinja/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-纯 Rust 实现的 Jinja2 引擎，专为 Hugging Face `chat_template` 字符串设计。  
-无需 Python，无需 `transformers`，直接从 GGUF 文件读取模板并生成提示词。
+纯 Rust 实现的 Jinja 风格子集模板渲染器，专为 Hugging Face `chat_template` 字符串设计。  
+无需 Python 或 `transformers`；GGUF 模板可由 ShimmyTok 读取，再交给 shimmyjinja 渲染。
 
 本库是 **shimmy** 推理生态系统的一部分：
 
 | 库 | 功能 |
 |---|---|
-| **shimmyjinja** ← 当前库 | `chat_template` 字符串的 Jinja2 模板引擎 |
+| **shimmyjinja** ← 当前库 | `chat_template` 字符串的 Jinja 风格子集渲染器 |
 | [**shimmytok**](https://crates.io/crates/shimmytok) | 原生读取 GGUF 格式的分词器（BPE/SentencePiece） |
 | [**airframe**](https://github.com/Michael-A-Kuykendall/airframe) | WebGPU 推理服务器，同时使用 shimmytok 和 shimmyjinja |
 | [**shimmy**](https://github.com/Michael-A-Kuykendall/shimmy) | 基于 Airframe 的 OpenAI 兼容推理服务 |
